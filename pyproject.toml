@@ -1,0 +1,19 @@
+# Tooling config for this notebooks repo.
+#   ruff format .          -> autoformat
+#   ruff check --fix .     -> lint + reorganise imports (the "I" rules)
+# VS Code is already set to do both on save (see .vscode/settings.json);
+# you just need ruff installed in the env:  conda install ruff  (or  pip install ruff)
+
+[tool.ruff]
+line-length = 79          # matches your current wrapping; ruff's default is 88
+target-version = "py312"
+
+[tool.ruff.lint]
+# E/W = pycodestyle, F = pyflakes, I = isort (import sorting/reorg), UP = pyupgrade.
+# Add "B" (flake8-bugbear) later if you want more opinionated lint.
+select = ["E", "W", "F", "I", "UP"]
+ignore = ["E501"]         # let the formatter own code width; don't nag on long docstrings/strings
+
+[tool.ruff.format]
+# Defaults are good; stated explicitly so it's obvious what you'd tweak.
+quote-style = "double"
