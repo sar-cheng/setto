@@ -8,50 +8,6 @@ import numpy.typing as npt
 from engine._types import Batch
 from engine.expr import Expr
 
-"""
-
-df = l.scan("data.csv").filter(...)
-aapl = df.filter(df.symbol == "aapl")      <-- new, df untouched
-
-we want to make something that supports this:
-df = scan("trades.parquet")
-df.filter(df.price > 300).filter(df.qty < 5).select(df.symbol, df.price))
-
-note i want to be able to display the col through df.price as well like how
-pandas displays a col with df["price"], whilst maintaining the query plan / expression tree (? not sure if im supposed to do this)
-
-for a table / df, what operations had to be fast?
-- scanning a lot of rows, usually filter
-- agg by col
-
-- groupby(x) then agg(y)
-- join
-- dedup / unique
-
-- sort / order by (e.g. order by x desc)
-- top n (e.g. order by ... limit 10)
-- window functions - running totals, moving averages, rank within a partition (e.g. over (partition by))
-
-df = mapping of col name -> col array
-"""
-
-"""
-data flows through operators in chunks - smaller versions of a df - a dict of arrays, where each is a slice
-
-groupbyop
-sum, mean, median
-
-NOTE:
-- scan is at the bottom, other ops stack on top of it
-- each op takes batches of data from the ops below, and passes them up
-
-We have PLAN nodes, and EXPR nodes
-- we do .scan(),filter().select() -> in memory: Select( Filter( Scan() ) )
-- do .collect() to convert the plan to the IR, i.e. change from Russian doll to list of pointers
-- optimizer runs is rules
-
-"""
-
 
 class Plan:
     schema: Sequence[str]

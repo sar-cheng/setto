@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import html
-import os
 
 import numpy as np
 
 from engine.expr import ColRef, Expr
-from engine.op import Filter, Plan, Scan, Select
+from engine.op import Filter, Plan, Select
 
 
 class DataFrame:
@@ -140,11 +139,3 @@ class LazyFrame:
                 for col in batches[0]
             }
         )
-
-
-def read(path: os.PathLike) -> DataFrame:
-    return scan(path).collect()
-
-
-def scan(path: os.PathLike) -> LazyFrame:
-    return LazyFrame(Scan(path))

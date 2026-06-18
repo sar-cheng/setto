@@ -9,20 +9,6 @@ import numpy.typing as npt
 
 from engine._types import Batch
 
-"""
-TODO: consider match instead of OOP?
-
-Expression tree:
-- leaves = cols and literals
-- turn columns into a new col / mask
-
-Logical plan (the query plan)
-- Scan -> Filter(pred) -> Filter(pred) -> Select(cols)
-- expressions live INSIDE plan nodes
-- a Filter node holds an expression tree (the predicate),
-    a Select node holds a list of expression trees (the output cols)
-"""
-
 BinaryFn = Callable[[npt.ArrayLike, npt.ArrayLike], npt.ArrayLike]
 UnaryFn = Callable[[npt.ArrayLike], npt.ArrayLike]
 
@@ -46,10 +32,6 @@ NonNestedLiteral = NumericLiteral | TimeLiteral | str | bool | bytes
 Literal = NonNestedLiteral | ColLike
 
 ExprLike = ColLike | Literal
-
-
-def col(name: str) -> ColRef:
-    return ColRef(name)
 
 
 def _to_expr(x: ExprLike) -> Expr:
