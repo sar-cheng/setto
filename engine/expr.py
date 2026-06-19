@@ -50,32 +50,33 @@ class Expr:
     def evaluate(self, batch: Batch) -> npt.ArrayLike:
         raise NotImplementedError("poop")
 
+    def columns(self) -> set[str]:
+        """Metadata"""
+        raise NotImplementedError
+
     def __gt__(self, other: ExprLike) -> Expr:
-        return BinaryOp(np.greater, self, _to_expr(other))
+        return BinaryOp(">", np.greater, self, _to_expr(other))
 
     def __lt__(self, other: ExprLike) -> Expr:
-        return BinaryOp(np.less, self, _to_expr(other))
+        return BinaryOp("<", np.less, self, _to_expr(other))
 
     def __eq__(self, other: ExprLike) -> Expr:
-        # NOTE: by defining this method, we've made Expr unhashable
-        # Py will set __hash = None
-        return BinaryOp(np.equal, self, _to_expr(other))
+        return BinaryOp("==", np.equal, self, _to_expr(other))
 
     def __ne__(self, other: ExprLike) -> Expr:
-        return BinaryOp(np.not_equal, self, _to_expr(other))
+        return BinaryOp("!=", np.not_equal, self, _to_expr(other))
+
+    def __and__(self, other: ExprLike) -> Expr:
+        return BinaryOp("&", np.logical_and, self, _to_expr(other))
+
+    def __or__(self, other: ExprLike) -> Expr:
+        return BinaryOp("|", np.logical_or, self, _to_expr(other))
+
+    def __invert__(self) -> Expr:
+        return UnaryOp("~", np.logical_not, self)
 
     def __bool__(self) -> None:
         raise TypeError("truth value of an Expr is ambiguous")
-
-    # Bitwise
-    def __and__(self, other: ExprLike) -> Expr:
-        return BinaryOp(np.logical_and, self, _to_expr(other))
-
-    def __or__(self, other):
-        return BinaryOp(np.logical_or, self, _to_expr(other))
-
-    def __invert__(self):
-        return UnaryOp(np.logical_not, self)
 
     # TODO: add ops like mul, add, rmul, radd?
 
@@ -84,34 +85,61 @@ class ColRef(Expr):
     def __init__(self, name: str):
         self.name = name
 
+    def __repr__(self) -> str:
+        return f"col({self.name!r})"
+
     def _repr_html_(self):
         pass
 
     def evaluate(self, batch: Batch) -> np.ndarray:
         return batch[self.name]
 
+    def columns(self) -> set[str]:
+        return {self.name}
+
 
 class Lit(Expr):
     def __init__(self, value: Literal):
         self.value = value
 
+    def __repr__(self) -> str:
+        return repr(self.value)
+
     def evaluate(self, _: Batch) -> Literal:
         return self.value
 
+    def columns(self) -> set[str]:
+        return set()
+
 
 class BinaryOp(Expr):
-    def __init__(self, fn: BinaryFn, left: Expr, right: Expr):
+    def __init__(self, op: str, fn: BinaryFn, left: Expr, right: Expr):
+        self.op = op
         self.fn = fn
         self.left = left
         self.right = right
 
+    def __repr__(self) -> str:
+        return f"({self.left!r} {self.op} {self.right!r})"
+
     def evaluate(self, batch: Batch) -> npt.ArrayLike:
         return self.fn(self.left.evaluate(batch), self.right.evaluate(batch))
 
+    def columns(self) -> set[str]:
+        return self.left.columns() | self.right.columns()
+
 
 class UnaryOp(Expr):
-    def __init__(self, fn: UnaryFn, operand: Expr):
-        self.fn, self.operand = fn, operand
+    def __init__(self, op: str, fn: UnaryFn, operand: Expr):
+        self.op = op
+        self.fn = fn
+        self.operand = operand
+
+    def __repr__(self) -> str:
+        return f"({self.op}{self.operand!r})"
 
     def evaluate(self, batch: Batch):
         return self.fn(self.operand.evaluate(batch))
+
+    def columns(self) -> set[str]:
+        return self.operand.columns()
