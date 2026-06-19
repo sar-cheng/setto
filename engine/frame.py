@@ -11,7 +11,7 @@ from engine.op import Filter, Plan, Select
 class DataFrame:
     _data: dict[str, np.array]
 
-    def __init__(self, data: dict[str, np.array]):
+    def __init__(self, data: dict[str, np.ArrayLike]):
         self._data = data
 
     def __getattr__(self, name: str):
@@ -132,10 +132,13 @@ class LazyFrame:
         return LazyFrame(Select([col.name for col in cols], self._plan))
 
     def collect(self) -> DataFrame:
-        batches = list(self._plan.execute())
+        batches = list(self._plan.optimize().execute())
         return DataFrame(
             {
                 col: np.concatenate([rows[col] for rows in batches])
                 for col in batches[0]
             }
         )
+
+    def explain(self) -> str:
+        return self._plan.explain()
