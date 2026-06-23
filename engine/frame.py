@@ -5,7 +5,8 @@ import html
 import numpy as np
 
 from engine.expr import ColRef, Expr
-from engine.op import Filter, Plan, Select
+from engine.optimizer import optimize
+from engine.plan import Filter, Plan, Select
 
 
 class DataFrame:
@@ -104,7 +105,12 @@ class DataFrame:
 
     @property
     def shape(self) -> tuple[int, int]:
-        pass
+        if not self._data:
+            return (0, 0)
+
+        rows = len(next(iter(self._data.values())))
+        cols = len(self._data.keys())
+        return (rows, cols)
 
 
 class LazyFrame:
@@ -126,13 +132,25 @@ class LazyFrame:
         return public_attrs + list(self._plan.schema)
 
     def filter(self, condition: Expr) -> LazyFrame:
-        return LazyFrame(Filter(condition, self._plan))
+        if condition.columns() <= set(self._plan.schema):
+            return LazyFrame(Filter(condition, self._plan))
+
+        not_exist = condition.columns() - set(self._plan.schema)
+        raise ValueError(
+            "Parent query's output schema does not contain: "
+            f"{', '.join(sorted(not_exist))}"
+        )
 
     def select(self, *cols: ColRef) -> LazyFrame:
         return LazyFrame(Select([col.name for col in cols], self._plan))
 
     def collect(self) -> DataFrame:
-        batches = list(self._plan.optimize().execute())
+        plan = self.optimized_plan()
+        batches = list(plan.execute())
+
+        if not batches:
+            return DataFrame({col: np.array([]) for col in plan.schema})
+
         return DataFrame(
             {
                 col: np.concatenate([rows[col] for rows in batches])
@@ -140,5 +158,9 @@ class LazyFrame:
             }
         )
 
-    def explain(self) -> str:
-        return self._plan.explain()
+    def optimized_plan(self) -> Plan:
+        return optimize(self._plan)
+
+    def explain(self, optimized: bool = False) -> str:
+        plan = self.optimized_plan() if optimized else self._plan
+        return plan.explain()

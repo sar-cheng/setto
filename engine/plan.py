@@ -15,12 +15,9 @@ class Plan:
     schema: Sequence[str]
 
     def execute(self) -> Iterator[Batch]:
-        pass
-
-    def explain(self, indent: int = 0) -> str:
         raise NotImplementedError
 
-    def optimize(self, required_columns: set[str] | None = None) -> Plan:
+    def explain(self, indent: int = 0) -> str:
         raise NotImplementedError
 
 
@@ -101,20 +98,11 @@ class Select(Plan):
     def __init__(self, cols: list[str], child: Plan):
         self.cols = cols
         self.child = child
-        self.schema = child.schema
+        self.schema = cols
 
     def execute(self) -> Iterator[Batch]:
         for batch in self.child.execute():
             yield {col: batch[col] for col in self.cols}
-
-    def optimize(self, required_columns: set[str] | None = None) -> Plan:
-        needed_by_parent = (
-            required_columns if required_columns is not None else set(self.cols)
-        )
-
-        child_required = set(self.cols) & needed_by_parent
-
-        return Select(child_required, self.child.optimize(child_required))
 
     def explain(self, indent: int = 0) -> str:
         pad = " " * indent

@@ -48,7 +48,7 @@ class Expr:
     """
 
     def evaluate(self, batch: Batch) -> npt.ArrayLike:
-        raise NotImplementedError("poop")
+        raise NotImplementedError()
 
     def columns(self) -> set[str]:
         """Metadata"""
