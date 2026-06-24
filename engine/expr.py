@@ -1,3 +1,13 @@
+"""Expression trees used by lazy filters and future computed columns.
+
+An expression can evaluate itself against a batch and report which source
+columns it needs. The optimizer uses that column metadata for pushdown.
+
+In this module, a "literal" means a constant value known before query
+execution. It can be a scalar like `10`, or a nested value such as a list used
+by a future `is_in()` expression.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -14,18 +24,6 @@ UnaryFn = Callable[[npt.ArrayLike], npt.ArrayLike]
 
 ColLike = np.ndarray[Any, Any] | list[Any]
 
-"""
-Literals
-
-NOTE: the meaning of "literal" here is not just "a simple number or string".
-It means a constant / hard-coded value provided by the user that is known
-before the query runs.
-
-Examples of nested literals in expressions:
-- df.department.is_in(['HR', 'Engineering', 'Sales'])
-- df.price * np.array([1.1, 1.2, ...])
-
-"""
 NumericLiteral = int | float
 TimeLiteral = date | time | datetime
 NonNestedLiteral = NumericLiteral | TimeLiteral | str | bool | bytes
@@ -35,23 +33,25 @@ ExprLike = ColLike | Literal
 
 
 def _to_expr(x: ExprLike) -> Expr:
+    """Convert user-provided values into expression nodes."""
     if isinstance(x, Expr):
         return x
     return Lit(x)
 
 
 class Expr:
-    """
-    df.col > 100
-    Every Expr node knows how to turn a dict[str, array] (one batch, or the
-    whole frame) into an array.
+    """Base expression node.
+
+    Every expression can evaluate against one batch and report the columns it
+    depends on.
     """
 
     def evaluate(self, batch: Batch) -> npt.ArrayLike:
+        """Evaluate this expression against a batch of columns."""
         raise NotImplementedError()
 
     def columns(self) -> set[str]:
-        """Metadata"""
+        """Return source columns required to evaluate this expression."""
         raise NotImplementedError
 
     def __gt__(self, other: ExprLike) -> Expr:
@@ -82,6 +82,8 @@ class Expr:
 
 
 class ColRef(Expr):
+    """Reference to a column in a batch."""
+
     def __init__(self, name: str):
         self.name = name
 
@@ -99,6 +101,8 @@ class ColRef(Expr):
 
 
 class Lit(Expr):
+    """Constant value embedded in an expression tree."""
+
     def __init__(self, value: Literal):
         self.value = value
 
@@ -113,6 +117,8 @@ class Lit(Expr):
 
 
 class BinaryOp(Expr):
+    """Binary expression such as `col("price") > 300`."""
+
     def __init__(self, op: str, fn: BinaryFn, left: Expr, right: Expr):
         self.op = op
         self.fn = fn
@@ -130,6 +136,8 @@ class BinaryOp(Expr):
 
 
 class UnaryOp(Expr):
+    """Unary expression such as logical negation."""
+
     def __init__(self, op: str, fn: UnaryFn, operand: Expr):
         self.op = op
         self.fn = fn

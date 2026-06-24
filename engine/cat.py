@@ -1,8 +1,15 @@
+"""Categorical arrays.
+
+`CatArray` stores integer codes plus a category lookup table. Multi-column
+categoricals are encoded by factorizing each column, packing row keys with
+mixed-radix arithmetic, then compressing the observed keys back to dense codes.
+"""
+
 from __future__ import annotations
 
-from collections.abc import Iterable
 import html
 import math
+from collections.abc import Iterable
 from typing import Any
 
 import numpy as np
@@ -107,10 +114,7 @@ def _categories_from_keys(
             key //= sizes[i]
 
         values.append(
-            tuple(
-                per_uniques[i][component_codes[i]]
-                for i in range(len(sizes))
-            )
+            tuple(per_uniques[i][component_codes[i]] for i in range(len(sizes)))
         )
 
     return _object_array(values)
@@ -144,9 +148,7 @@ class CatArray:
     _codes: npt.NDArray[np.int64]
     _categories: npt.NDArray[np.object_]
 
-    def __init__(
-        self, codes: npt.ArrayLike, categories: npt.ArrayLike
-    ) -> None:
+    def __init__(self, codes: npt.ArrayLike, categories: npt.ArrayLike) -> None:
         self._codes = np.asarray(codes, dtype=np.int64)
         self._categories = np.asarray(categories, dtype=object)
 
@@ -172,12 +174,14 @@ class CatArray:
     def __getitem__(
         self, key: int | slice | npt.NDArray[Any] | list[int]
     ) -> Any | CatArray:
+        """Return a decoded scalar or a sliced categorical array."""
         sub = self._codes[key]
         if np.ndim(sub) == 0:
             return None if sub < 0 else self._categories[sub]
         return CatArray(sub, self._categories)
 
     def take(self, indices: npt.ArrayLike) -> CatArray:
+        """Return rows at integer positions while preserving categories."""
         indices = np.asarray(indices, dtype=np.int64)
         return CatArray(self._codes[indices], self._categories)
 
@@ -186,6 +190,7 @@ class CatArray:
         dtype: npt.DTypeLike | None = None,
         copy: bool | None = None,
     ) -> npt.NDArray[Any]:
+        """Expose raw codes to NumPy."""
         return self._codes if dtype is None else self._codes.astype(dtype)
 
     def isna(self) -> npt.NDArray[np.bool_]:

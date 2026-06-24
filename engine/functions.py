@@ -1,3 +1,5 @@
+"""Public functions for building frames and arrays."""
+
 from __future__ import annotations
 
 import os
@@ -13,10 +15,12 @@ if TYPE_CHECKING:
 
 
 def read(path: os.PathLike) -> DataFrame:
+    """Read a CSV file eagerly by scanning and collecting it."""
     return scan(path).collect()
 
 
 def scan(path: os.PathLike) -> LazyFrame:
+    """Create a lazy CSV scan without reading row data yet."""
     return LazyFrame(Scan(path))
 
 

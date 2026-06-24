@@ -1,3 +1,5 @@
+"""Test helpers for comparing frames and inspecting plan structure."""
+
 import numpy as np
 
 from engine import DataFrame
@@ -16,6 +18,7 @@ def assert_df_equal(
 
 
 def plan_shape(plan: Plan):
+    """Return a stable nested tuple representation of a plan tree."""
     match plan:
         case Scan():
             return ("scan", tuple(plan.schema))

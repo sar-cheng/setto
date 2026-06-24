@@ -1,3 +1,9 @@
+"""Plan nodes for lazy query execution.
+
+Plans form a tree: user calls from a LazyFrame build `Scan`, `Filter`, and
+`Select` nodes, then the optimizer rewrites the tree before execution.
+"""
+
 from __future__ import annotations
 
 import csv
@@ -12,16 +18,22 @@ from engine.expr import Expr
 
 
 class Plan:
+    """Base interface for query plan nodes."""
+
     schema: Sequence[str]
 
     def execute(self) -> Iterator[Batch]:
+        """Yield batches of column arrays."""
         raise NotImplementedError
 
     def explain(self, indent: int = 0) -> str:
+        """Render this node and its children as an indented tree."""
         raise NotImplementedError
 
 
 class Scan(Plan):
+    """Read selected columns from a CSV file in batches."""
+
     def __init__(
         self,
         path: str | os.PathLike[str],
@@ -46,6 +58,7 @@ class Scan(Plan):
             return np.array(vals)
 
     def execute(self) -> Iterator[Batch]:
+        """Stream CSV rows into columnar NumPy batches."""
         with open(self.path) as f:
             reader = csv.DictReader(f)
 
@@ -71,15 +84,15 @@ class Scan(Plan):
 
 
 class Filter(Plan):
+    """Keep rows whose predicate evaluates to true."""
+
     def __init__(self, predicate: Expr, child: Plan):
-        """
-        predicate: the condition to filter on, an expression tree / node
-        """
         self.predicate = predicate
         self.child = child
         self.schema = child.schema
 
     def execute(self) -> Iterator[Batch]:
+        """Apply the predicate mask to each child batch."""
         for batch in self.child.execute():
             mask: npt.ArrayLike[bool] = self.predicate.evaluate(batch)
             yield {
@@ -95,12 +108,15 @@ class Filter(Plan):
 
 
 class Select(Plan):
+    """Keep only a subset of columns from the child plan."""
+
     def __init__(self, cols: list[str], child: Plan):
         self.cols = cols
         self.child = child
         self.schema = cols
 
     def execute(self) -> Iterator[Batch]:
+        """Project each child batch down to selected columns."""
         for batch in self.child.execute():
             yield {col: batch[col] for col in self.cols}
 

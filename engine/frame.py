@@ -1,3 +1,5 @@
+"""Eager and lazy dataframe objects that users interact with."""
+
 from __future__ import annotations
 
 import html
@@ -114,6 +116,8 @@ class DataFrame:
 
 
 class LazyFrame:
+    """A dataframe query represented as a plan that has not run yet."""
+
     def __init__(self, plan: Plan):
         self._plan = plan
 
@@ -132,6 +136,7 @@ class LazyFrame:
         return public_attrs + list(self._plan.schema)
 
     def filter(self, condition: Expr) -> LazyFrame:
+        """Return a lazy frame with rows restricted by `condition`."""
         if condition.columns() <= set(self._plan.schema):
             return LazyFrame(Filter(condition, self._plan))
 
@@ -142,9 +147,11 @@ class LazyFrame:
         )
 
     def select(self, *cols: ColRef) -> LazyFrame:
+        """Return a lazy frame with only the selected columns."""
         return LazyFrame(Select([col.name for col in cols], self._plan))
 
     def collect(self) -> DataFrame:
+        """Optimize and execute the plan, returning a materialized frame."""
         plan = self.optimized_plan()
         batches = list(plan.execute())
 
@@ -162,5 +169,6 @@ class LazyFrame:
         return optimize(self._plan)
 
     def explain(self, optimized: bool = False) -> str:
+        """Render the query plan, optionally after optimization."""
         plan = self.optimized_plan() if optimized else self._plan
         return plan.explain()
